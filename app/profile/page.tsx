@@ -9,6 +9,10 @@ export default function ProfilePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ text: "", type: "" });
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [pwdLoading, setPwdLoading] = useState(false);
+  const [pwdMessage, setPwdMessage] = useState({ text: "", type: "" });
+  const [pwdData, setPwdData] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
 
   const [formData, setFormData] = useState({
     name: "",
@@ -40,6 +44,51 @@ export default function ProfilePage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handlePwdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPwdData({ ...pwdData, [e.target.name]: e.target.value });
+  };
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pwdData.newPassword !== pwdData.confirmPassword) {
+      setPwdMessage({ text: "New passwords do not match.", type: "error" });
+      return;
+    }
+    if (pwdData.newPassword.length < 6) {
+      setPwdMessage({ text: "New password must be at least 6 characters.", type: "error" });
+      return;
+    }
+    setPwdLoading(true);
+    setPwdMessage({ text: "", type: "" });
+
+    try {
+      const res = await fetch("/api/users/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword: pwdData.currentPassword,
+          newPassword: pwdData.newPassword,
+        }),
+      });
+      
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setPwdMessage({ text: "Password changed successfully!", type: "success" });
+        setPwdData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+        setTimeout(() => {
+          setShowPasswordModal(false);
+          setPwdMessage({ text: "", type: "" });
+        }, 2000);
+      } else {
+        setPwdMessage({ text: data.error || "Failed to change password.", type: "error" });
+      }
+    } catch (err) {
+      setPwdMessage({ text: "An error occurred.", type: "error" });
+    } finally {
+      setPwdLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -93,11 +142,21 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div className="pb-5 border-b border-slate-200">
-        <h3 className="text-2xl font-bold leading-6 text-slate-900">My Profile</h3>
-        <p className="mt-2 text-sm text-slate-500">
-          Update your personal details below. Your role and department are managed by Admin.
-        </p>
+      <div className="pb-5 border-b border-slate-200 sm:flex sm:items-center sm:justify-between">
+        <div>
+          <h3 className="text-2xl font-bold leading-6 text-slate-900">My Profile</h3>
+          <p className="mt-2 text-sm text-slate-500">
+            Update your personal details below. Your role and department are managed by Admin.
+          </p>
+        </div>
+        <div className="mt-4 sm:ml-4 sm:mt-0">
+          <button
+            onClick={() => setShowPasswordModal(true)}
+            className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50"
+          >
+            Change Password
+          </button>
+        </div>
       </div>
 
       <div className="bg-white shadow sm:rounded-xl border border-slate-200 overflow-hidden">
@@ -198,6 +257,81 @@ export default function ProfilePage() {
           </form>
         </div>
       </div>
+
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded-xl w-full max-w-sm sm:max-w-md shadow-xl">
+            <h2 className="text-xl font-bold mb-4 text-slate-800 border-b pb-2">Change Password</h2>
+
+            {pwdMessage.text && (
+              <div className={`mb-4 p-3 rounded-lg text-sm font-medium ${pwdMessage.type === 'success' ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'}`}>
+                {pwdMessage.text}
+              </div>
+            )}
+
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Current Password</label>
+                <input
+                  type="password"
+                  name="currentPassword"
+                  required
+                  value={pwdData.currentPassword}
+                  onChange={handlePwdChange}
+                  className="w-full border p-2 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">New Password</label>
+                <input
+                  type="password"
+                  name="newPassword"
+                  required
+                  value={pwdData.newPassword}
+                  onChange={handlePwdChange}
+                  className="w-full border p-2 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Confirm New Password</label>
+                <input
+                  type="password"
+                  name="confirmPassword"
+                  required
+                  value={pwdData.confirmPassword}
+                  onChange={handlePwdChange}
+                  className="w-full border p-2 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPasswordModal(false);
+                    setPwdMessage({ text: "", type: "" });
+                    setPwdData({ currentPassword: "", newPassword: "", confirmPassword: "" });
+                  }}
+                  className="px-4 py-2 border rounded-lg hover:bg-slate-50"
+                  disabled={pwdLoading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={pwdLoading || pwdData.newPassword !== pwdData.confirmPassword}
+                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-70 disabled:cursor-not-allowed flex items-center"
+                >
+                  {pwdLoading ? "Updating..." : "Update Password"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
