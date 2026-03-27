@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { gql } from "@/lib/hasura";
 import { isValidPassword } from "@/lib/validation";
+import bcrypt from "bcryptjs";
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,24 +22,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "New password must be at least 6 characters long." }, { status: 400 });
     }
 
-    const verifyQuery = `query ($id: uuid!, $password: String!) {
-      users(where: {id: {_eq: $id}, password: {_eq: $password}}) {
-        id
+    // Fetch the stored (possibly hashed) password for this user
+    const fetchQuery = `query ($id: uuid!) {
+      users_by_pk(id: $id) {
+        password
       }
     }`;
 
-    const verifyRes = await gql(verifyQuery, {
-      id: session.user.id,
-      password: currentPassword
-    });
+    const fetchRes = await gql(fetchQuery, { id: session.user.id });
 
-    if (verifyRes.errors) {
-       return NextResponse.json({ error: "Error verifying password." }, { status: 500 });
+    if (fetchRes.errors || !fetchRes.data?.users_by_pk) {
+      return NextResponse.json({ error: "Error verifying password." }, { status: 500 });
     }
 
-    if (!verifyRes.data?.users?.length) {
+    const storedPassword: string = fetchRes.data.users_by_pk.password;
+
+    // Try bcrypt compare first (for hashed passwords), then fall back to plain-text (legacy)
+    const bcryptMatch = await bcrypt.compare(currentPassword, storedPassword).catch(() => false);
+    const legacyMatch = !bcryptMatch && storedPassword === currentPassword;
+
+    if (!bcryptMatch && !legacyMatch) {
       return NextResponse.json({ error: "Incorrect current password." }, { status: 400 });
     }
+
+    // Hash the new password before storing
+    const hashedNewPassword = await bcrypt.hash(newPassword, 12);
 
     const updateMutation = `mutation ($id: uuid!, $newPassword: String!) {
       update_users_by_pk(pk_columns: {id: $id}, _set: {password: $newPassword}) {
@@ -48,7 +56,7 @@ export async function POST(req: NextRequest) {
 
     const updateRes = await gql(updateMutation, {
       id: session.user.id,
-      newPassword: newPassword
+      newPassword: hashedNewPassword
     });
 
     if (updateRes.errors) {

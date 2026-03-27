@@ -42,9 +42,6 @@ export default async function Dashboard() {
     <div className="space-y-6">
       <div className="pb-5 border-b border-slate-200">
         <h3 className="text-2xl font-bold leading-6 text-slate-900">Dashboard Overview</h3>
-        <p className="mt-2 max-w-4xl text-sm text-slate-500">
-          Welcome back, {session.user.name}. Here's what's happening today.
-        </p>
       </div>
 
       <dl className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">

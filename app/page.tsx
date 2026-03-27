@@ -1,75 +1,87 @@
 "use client";
 import { signIn } from "next-auth/react";
-import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { isValidEmail, isValidPassword } from "@/lib/validation";
+import { useFormik } from "formik";
+import { loginSchema } from "@/validations/loginSchema";
+import FormField from "@/components/ui/FormField";
+
+const inputCls = "border border-slate-300 p-3 w-full rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-all";
+const inputErrCls = "border border-red-400 p-3 w-full rounded-lg focus:ring-2 focus:ring-red-400 outline-none transition-all";
 
 export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-
   const router = useRouter();
-  
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
 
-    if (!isValidEmail(email)) {
-      setError("Please enter a valid email address.");
-      return;
-    }
-    if (!isValidPassword(password)) {
-      setError("Password must be at least 6 characters long.");
-      return;
-    }
-
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
-    if (result?.error) {
-      setError("Invalid credentials");
-    } else {
-      router.push("/dashboard");
-    }
-  };
+  const formik = useFormik({
+    initialValues: { email: "", password: "" },
+    validationSchema: loginSchema,
+    onSubmit: async (values, { setStatus, setSubmitting }) => {
+      setStatus("");
+      const result = await signIn("credentials", {
+        email: values.email,
+        password: values.password,
+        redirect: false,
+      });
+      if (result?.error) {
+        setStatus("Invalid email or password.");
+      } else {
+        router.push("/dashboard");
+      }
+      setSubmitting(false);
+    },
+  });
 
   return (
     <div className="flex h-screen items-center justify-center bg-gray-50">
       <div className="w-full max-w-md bg-white p-8 rounded-lg shadow-md">
         <h1 className="text-2xl font-bold text-center mb-6">Login</h1>
-        {error && <p className="text-red-500 text-center mb-4">{error}</p>}
-        <form onSubmit={handleLogin}>
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="border border-slate-300 p-3 w-full mb-4 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="border border-slate-300 p-3 w-full mb-6 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-          />
+
+        {formik.status && (
+          <p className="text-red-500 text-center mb-4 text-sm">{formik.status}</p>
+        )}
+
+        <form onSubmit={formik.handleSubmit} noValidate className="space-y-4">
+          <FormField
+            label="Email"
+            id="email"
+            error={formik.errors.email}
+            touched={formik.touched.email}
+          >
+            <input
+              type="email"
+              name="email"
+              value={formik.values.email}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              placeholder="you@example.com"
+              className={formik.touched.email && formik.errors.email ? inputErrCls : inputCls}
+            />
+          </FormField>
+
+          <FormField
+            label="Password"
+            id="password"
+            error={formik.errors.password}
+            touched={formik.touched.password}
+          >
+            <input
+              type="password"
+              name="password"
+              value={formik.values.password}
+              onChange={formik.handleChange}
+              onBlur={formik.handleBlur}
+              placeholder="••••••••"
+              className={formik.touched.password && formik.errors.password ? inputErrCls : inputCls}
+            />
+          </FormField>
+
           <button
             type="submit"
-            className="bg-indigo-600 text-white w-full p-3 rounded-lg hover:bg-indigo-700 font-medium transition-colors"
+            disabled={formik.isSubmitting || !formik.isValid || !formik.dirty}
+            className="bg-indigo-600 text-white w-full p-3 rounded-lg hover:bg-indigo-700 font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed mt-2"
           >
-            Sign In
+            {formik.isSubmitting ? "Signing in..." : "Sign In"}
           </button>
         </form>
-        <p className="text-center mt-6 text-sm text-slate-500">
-          Don't have an account?{" "}
-          <Link href="/signup" className="text-blue-500 hover:underline">
-            Sign up
-          </Link>
-        </p>
       </div>
     </div>
   );

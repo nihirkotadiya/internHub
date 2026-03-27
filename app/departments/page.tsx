@@ -87,9 +87,6 @@ export default function DepartmentsPage() {
       <div className="pb-5 border-b border-slate-200 flex justify-between items-center">
         <div>
           <h3 className="text-2xl font-bold leading-6 text-slate-900">Departments Management</h3>
-          <p className="mt-2 text-sm text-slate-500">
-            Create, view, and manage company departments.
-          </p>
         </div>
       </div>
 

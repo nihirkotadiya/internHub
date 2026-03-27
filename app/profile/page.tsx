@@ -3,24 +3,32 @@
 import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useFormik } from "formik";
+import { changePasswordSchema } from "@/validations/changePasswordSchema";
+import FormField from "@/components/ui/FormField";
+
+const disabledCls = "w-full px-4 py-2 border border-slate-200 bg-slate-50 text-slate-500 rounded-lg outline-none cursor-not-allowed";
+const inputErrCls = "w-full border border-red-400 p-2 rounded-lg focus:ring-2 focus:ring-red-400 outline-none";
+const inputCls = "w-full border p-2 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none";
+
+function getInputCls(touched?: boolean, error?: string) {
+  return touched && error ? inputErrCls : inputCls;
+}
 
 export default function ProfilePage() {
-  const { data: session, status, update } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState({ text: "", type: "" });
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-  const [pwdLoading, setPwdLoading] = useState(false);
-  const [pwdMessage, setPwdMessage] = useState({ text: "", type: "" });
-  const [pwdData, setPwdData] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
 
-  const [formData, setFormData] = useState({
+  const [profileData, setProfileData] = useState({
     name: "",
     email: "",
     gender: "",
     college: "",
     contact_number: "",
     joining_date: "",
+    date_of_birth: "",
+    degree: "",
   });
 
   useEffect(() => {
@@ -30,128 +38,64 @@ export default function ProfilePage() {
       if (session.user.role !== "intern") {
         router.push("/dashboard");
       } else {
-          setFormData({
-            name: session.user.name || "",
-            email: session.user.email || "",
-            gender: session.user.gender || "",
-            college: session.user.college || "",
-            contact_number: session.user.contact_number || "",
-            joining_date: session.user.joining_date || ""
-          });
+        setProfileData({
+          name: session.user.name || "",
+          email: session.user.email || "",
+          gender: session.user.gender || "",
+          college: session.user.college || "",
+          contact_number: session.user.contact_number || "",
+          joining_date: session.user.joining_date || "",
+          date_of_birth: (session.user as any).date_of_birth || "",
+          degree: (session.user as any).degree || "",
+        });
       }
     }
   }, [session, status]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handlePwdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPwdData({ ...pwdData, [e.target.name]: e.target.value });
-  };
-
-  const handlePasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (pwdData.newPassword !== pwdData.confirmPassword) {
-      setPwdMessage({ text: "New passwords do not match.", type: "error" });
-      return;
-    }
-    if (pwdData.newPassword.length < 6) {
-      setPwdMessage({ text: "New password must be at least 6 characters.", type: "error" });
-      return;
-    }
-    setPwdLoading(true);
-    setPwdMessage({ text: "", type: "" });
-
-    try {
-      const res = await fetch("/api/users/change-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          currentPassword: pwdData.currentPassword,
-          newPassword: pwdData.newPassword,
-        }),
-      });
-      
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setPwdMessage({ text: "Password changed successfully!", type: "success" });
-        setPwdData({ currentPassword: "", newPassword: "", confirmPassword: "" });
-        setTimeout(() => {
-          setShowPasswordModal(false);
-          setPwdMessage({ text: "", type: "" });
-        }, 2000);
-      } else {
-        setPwdMessage({ text: data.error || "Failed to change password.", type: "error" });
-      }
-    } catch (err) {
-      setPwdMessage({ text: "An error occurred.", type: "error" });
-    } finally {
-      setPwdLoading(false);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!session?.user?.id) return;
-    setLoading(true);
-    setMessage({ text: "", type: "" });
-
-    try {
-      const res = await fetch("/api/users/update", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: session.user.id,
-          name: formData.name,
-          email: formData.email,
-          college: formData.college,
-          gender: formData.gender,
-          contact_number: formData.contact_number,
-          role: "intern"
-        }),
-      });
-      
-      const data = await res.json();
-      if (!res.ok) {
-        setMessage({ text: data.error || "Failed to update profile.", type: "error" });
-        return;
-      }
-      if (data.success) {
-        await update({
-          user: {
-            ...session.user,
-            name: formData.name,
-            college: formData.college,
-            gender: formData.gender,
-            contact_number: formData.contact_number,
-          }
+  const pwdFormik = useFormik({
+    initialValues: { currentPassword: "", newPassword: "", confirmPassword: "" },
+    validationSchema: changePasswordSchema,
+    onSubmit: async (values, { setStatus, setSubmitting, resetForm }) => {
+      setStatus("");
+      try {
+        const res = await fetch("/api/users/change-password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            currentPassword: values.currentPassword,
+            newPassword: values.newPassword,
+          }),
         });
-        setMessage({ text: "Profile updated successfully!", type: "success" });
-      } else {
-        setMessage({ text: "Failed to update profile.", type: "error" });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setStatus("success");
+          setTimeout(() => {
+            setShowPasswordModal(false);
+            resetForm();
+          }, 2000);
+        } else {
+          setStatus(data.error || "Failed to change password.");
+        }
+      } catch {
+        setStatus("An error occurred.");
+      } finally {
+        setSubmitting(false);
       }
-    } catch (err) {
-      setMessage({ text: "An unexpected error occurred.", type: "error" });
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+  });
 
   if (status === "loading" || !session?.user || session.user.role !== "intern") return null;
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
+      {/* Header */}
       <div className="pb-5 border-b border-slate-200 sm:flex sm:items-center sm:justify-between">
         <div>
           <h3 className="text-2xl font-bold leading-6 text-slate-900">My Profile</h3>
-          <p className="mt-2 text-sm text-slate-500">
-            Update your personal details below. Your role and department are managed by Admin.
-          </p>
         </div>
         <div className="mt-4 sm:ml-4 sm:mt-0">
           <button
-            onClick={() => setShowPasswordModal(true)}
+            onClick={() => { setShowPasswordModal(true); pwdFormik.resetForm(); }}
             className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50"
           >
             Change Password
@@ -159,179 +103,120 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      {/* Profile Card — all read-only */}
       <div className="bg-white shadow sm:rounded-xl border border-slate-200 overflow-hidden">
         <div className="px-4 py-5 sm:p-6">
-          {message.text && (
-            <div className={`mb-6 p-4 rounded-lg text-sm font-medium ${message.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'}`}>
-              {message.text}
+          <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
+            <div className="sm:col-span-6">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+              <input type="text" value={profileData.name} disabled className={disabledCls} />
             </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-              <div className="sm:col-span-6">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                  
-                />
-              </div>
-
-              <div className="sm:col-span-6">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  disabled
-                  className="w-full px-4 py-2 border border-slate-200 bg-slate-50 text-slate-500 rounded-lg outline-none cursor-not-allowed"
-                />
-              </div>
-
-              <div className="sm:col-span-3">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Gender</label>
-                <select
-                  name="gender"
-                  value={formData.gender}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
-                  
-                >
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                </select>
-              </div>
-
-              <div className="sm:col-span-3">
-                <label className="block text-sm font-medium text-slate-700 mb-1">College / University</label>
-                <input
-                  type="text"
-                  name="college"
-                  value={formData.college}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                  
-                />
-              </div>
-
-              <div className="sm:col-span-3">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Contact Number</label>
-                <input
-                  type="tel"
-                  name="contact_number"
-                  value={formData.contact_number}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                  minLength={10} maxLength={10}
-                />
-              </div>
-
-              <div className="sm:col-span-3">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Joining Date</label>
-                <input
-                  type="date"
-                  name="joining_date"
-                  value={formData.joining_date}
-                  disabled
-                  className="w-full px-4 py-2 border border-slate-200 bg-slate-50 text-slate-500 rounded-lg outline-none cursor-not-allowed"
-                />
-              </div>
+            <div className="sm:col-span-6">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
+              <input type="email" value={profileData.email} disabled className={disabledCls} />
             </div>
-
-            <div className="pt-4 border-t border-slate-200 flex justify-end">
-              <button
-                type="submit"
-                disabled={loading}
-                className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 font-medium transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center"
-              >
-                {loading && (
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                )}
-                Save Changes
-              </button>
+            <div className="sm:col-span-3">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Gender</label>
+              <input type="text" value={profileData.gender} disabled className={disabledCls} />
             </div>
-          </form>
+            <div className="sm:col-span-3">
+              <label className="block text-sm font-medium text-slate-700 mb-1">College / University</label>
+              <input type="text" value={profileData.college} disabled className={disabledCls} />
+            </div>
+            <div className="sm:col-span-3">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Contact Number</label>
+              <input type="text" value={profileData.contact_number} disabled className={disabledCls} />
+            </div>
+            <div className="sm:col-span-3">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Joining Date</label>
+              <input type="date" value={profileData.joining_date} disabled className={disabledCls} />
+            </div>
+            <div className="sm:col-span-3">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Date of Birth</label>
+              <input type="date" value={profileData.date_of_birth} disabled className={disabledCls} />
+            </div>
+            <div className="sm:col-span-6">
+              <label className="block text-sm font-medium text-slate-700 mb-1">Degree / Program</label>
+              <input type="text" value={profileData.degree} disabled placeholder="Not specified" className={disabledCls} />
+            </div>
+          </div>
         </div>
       </div>
 
+      {/* Change Password Modal with Formik */}
       {showPasswordModal && (
         <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50">
           <div className="bg-white p-6 rounded-xl w-full max-w-sm sm:max-w-md shadow-xl">
             <h2 className="text-xl font-bold mb-4 text-slate-800 border-b pb-2">Change Password</h2>
 
-            {pwdMessage.text && (
-              <div className={`mb-4 p-3 rounded-lg text-sm font-medium ${pwdMessage.type === 'success' ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-800'}`}>
-                {pwdMessage.text}
+            {pwdFormik.status === "success" ? (
+              <div className="mb-4 p-3 rounded-lg text-sm font-medium bg-emerald-50 text-emerald-800">
+                Password changed successfully!
               </div>
-            )}
+            ) : pwdFormik.status ? (
+              <div className="mb-4 p-3 rounded-lg text-sm font-medium bg-red-50 text-red-800">
+                {pwdFormik.status}
+              </div>
+            ) : null}
 
-            <form onSubmit={handlePasswordSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Current Password</label>
+            <form onSubmit={pwdFormik.handleSubmit} noValidate className="space-y-4">
+              <FormField id="currentPassword" label="Current Password" error={pwdFormik.errors.currentPassword} touched={pwdFormik.touched.currentPassword}>
                 <input
+                  id="currentPassword"
                   type="password"
                   name="currentPassword"
-                  required
-                  value={pwdData.currentPassword}
-                  onChange={handlePwdChange}
-                  className="w-full border p-2 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                  value={pwdFormik.values.currentPassword}
+                  onChange={pwdFormik.handleChange}
+                  onBlur={pwdFormik.handleBlur}
+                  className={getInputCls(pwdFormik.touched.currentPassword, pwdFormik.errors.currentPassword)}
                 />
-              </div>
+              </FormField>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">New Password</label>
+              <FormField id="newPassword" label="New Password" error={pwdFormik.errors.newPassword} touched={pwdFormik.touched.newPassword}>
                 <input
+                  id="newPassword"
                   type="password"
                   name="newPassword"
-                  required
-                  value={pwdData.newPassword}
-                  onChange={handlePwdChange}
-                  className="w-full border p-2 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                  value={pwdFormik.values.newPassword}
+                  onChange={pwdFormik.handleChange}
+                  onBlur={pwdFormik.handleBlur}
+                  className={getInputCls(pwdFormik.touched.newPassword, pwdFormik.errors.newPassword)}
                 />
-              </div>
+              </FormField>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Confirm New Password</label>
+              <FormField id="confirmPassword" label="Confirm New Password" error={pwdFormik.errors.confirmPassword} touched={pwdFormik.touched.confirmPassword}>
                 <input
+                  id="confirmPassword"
                   type="password"
                   name="confirmPassword"
-                  required
-                  value={pwdData.confirmPassword}
-                  onChange={handlePwdChange}
-                  className="w-full border p-2 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                  value={pwdFormik.values.confirmPassword}
+                  onChange={pwdFormik.handleChange}
+                  onBlur={pwdFormik.handleBlur}
+                  className={getInputCls(pwdFormik.touched.confirmPassword, pwdFormik.errors.confirmPassword)}
                 />
-              </div>
+              </FormField>
 
               <div className="flex justify-end gap-2 pt-4 border-t">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowPasswordModal(false);
-                    setPwdMessage({ text: "", type: "" });
-                    setPwdData({ currentPassword: "", newPassword: "", confirmPassword: "" });
-                  }}
+                  onClick={() => { setShowPasswordModal(false); pwdFormik.resetForm(); }}
                   className="px-4 py-2 border rounded-lg hover:bg-slate-50"
-                  disabled={pwdLoading}
+                  disabled={pwdFormik.isSubmitting}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={pwdLoading || pwdData.newPassword !== pwdData.confirmPassword}
+                  disabled={pwdFormik.isSubmitting || !pwdFormik.isValid || !pwdFormik.dirty}
                   className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-70 disabled:cursor-not-allowed flex items-center"
                 >
-                  {pwdLoading ? "Updating..." : "Update Password"}
+                  {pwdFormik.isSubmitting ? "Updating..." : "Update Password"}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-
     </div>
   );
 }

@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { id, name, email, department_id, college, gender, contact_number, joining_date, status, role } = body;
+    const { id, name, email, department_id, college, gender, contact_number, joining_date, status, role, date_of_birth, degree } = body;
 
     const validation = validateUserUpdate({ name, email, college, role, contact_number });
     if (!validation.valid) {
@@ -72,6 +72,8 @@ export async function POST(req: NextRequest) {
         user_id: userId,
         collage: college ?? null,
         contact_number: contact_number ?? null,
+        date_of_birth: date_of_birth ?? null,
+        degree: degree ?? null,
       };
 
       if (session.user.role === "admin" || session.user.role === "manager") {
@@ -85,7 +87,11 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      const internMutation = `mutation ($user_id: uuid!, $collage: String, $contact_number: String ${variablesPayload.joining_date ? ', $joining_date: date' : ''} ${variablesPayload.status ? ', $status: String' : ''}) {
+      // Always include date_of_birth and degree in the update
+      customSets.push(`date_of_birth: $date_of_birth`);
+      customSets.push(`degree: $degree`);
+
+      const internMutation = `mutation ($user_id: uuid!, $collage: String, $contact_number: String, $date_of_birth: date, $degree: String ${variablesPayload.joining_date ? ', $joining_date: date' : ''} ${variablesPayload.status ? ', $status: String' : ''}) {
         update_interns(where: {user_id: {_eq: $user_id}}, _set: {${customSets.join(', ')}}) {
           affected_rows
         }
