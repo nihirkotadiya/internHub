@@ -7,25 +7,42 @@ interface FormFieldProps {
   touched?: boolean;
   children: React.ReactNode;
   className?: string;
+  required?: boolean;
 }
 
-/**
- * Reusable form field wrapper: label + input + Formik error message.
- * Place `id` directly on the input child — this component just wraps and labels it.
- */
-export default function FormField({ label, id, error, touched, children, className = "" }: FormFieldProps) {
+export default function FormField({
+  label,
+  id,
+  error,
+  touched,
+  children,
+  className = "",
+  required,
+}: FormFieldProps) {
   const hasError = touched && error;
 
   return (
     <div className={className}>
-      <label htmlFor={id} className="block text-sm font-medium text-slate-700 mb-1">
+      <label
+        htmlFor={id}
+        className="block text-sm font-medium text-slate-700 mb-1.5"
+      >
         {label}
+        {required && <span className="text-red-500 ml-1">*</span>}
       </label>
       {children}
       {hasError && (
-        <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
-          <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+        <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1.5 animate-[fadeIn_0.15s_ease]">
+          <svg
+            className="w-3.5 h-3.5 flex-shrink-0"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+          >
+            <path
+              fillRule="evenodd"
+              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+              clipRule="evenodd"
+            />
           </svg>
           {error}
         </p>
@@ -33,4 +50,3 @@ export default function FormField({ label, id, error, touched, children, classNa
     </div>
   );
 }
-

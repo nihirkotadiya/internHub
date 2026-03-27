@@ -7,37 +7,35 @@ import { useFormik } from "formik";
 import { changePasswordSchema } from "@/validations/changePasswordSchema";
 import FormField from "@/components/ui/FormField";
 
-const disabledCls = "w-full px-4 py-2 border border-slate-200 bg-slate-50 text-slate-500 rounded-lg outline-none cursor-not-allowed";
-const inputErrCls = "w-full border border-red-400 p-2 rounded-lg focus:ring-2 focus:ring-red-400 outline-none";
-const inputCls = "w-full border p-2 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none";
-
 function getInputCls(touched?: boolean, error?: string) {
-  return touched && error ? inputErrCls : inputCls;
+  return `input-base${touched && error ? " error" : ""}`;
+}
+
+function ProfileField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">{label}</label>
+      <div className="px-3.5 py-2.5 rounded-lg bg-slate-50 border border-slate-100 text-slate-700 text-sm font-medium min-h-[40px]">
+        {value || <span className="text-slate-400 italic font-normal">Not specified</span>}
+      </div>
+    </div>
+  );
 }
 
 export default function ProfilePage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [showPasswordModal, setShowPasswordModal] = useState(false);
-
   const [profileData, setProfileData] = useState({
-    name: "",
-    email: "",
-    gender: "",
-    college: "",
-    contact_number: "",
-    joining_date: "",
-    date_of_birth: "",
-    degree: "",
+    name: "", email: "", gender: "", college: "", contact_number: "",
+    joining_date: "", date_of_birth: "", degree: "",
   });
 
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/");
-    } else if (session?.user) {
-      if (session.user.role !== "intern") {
-        router.push("/dashboard");
-      } else {
+    if (status === "unauthenticated") router.push("/");
+    else if (session?.user) {
+      if (session.user.role !== "intern") router.push("/dashboard");
+      else {
         setProfileData({
           name: session.user.name || "",
           email: session.user.email || "",
@@ -61,159 +59,135 @@ export default function ProfilePage() {
         const res = await fetch("/api/users/change-password", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            currentPassword: values.currentPassword,
-            newPassword: values.newPassword,
-          }),
+          body: JSON.stringify({ currentPassword: values.currentPassword, newPassword: values.newPassword }),
         });
         const data = await res.json();
         if (res.ok && data.success) {
           setStatus("success");
-          setTimeout(() => {
-            setShowPasswordModal(false);
-            resetForm();
-          }, 2000);
-        } else {
-          setStatus(data.error || "Failed to change password.");
-        }
-      } catch {
-        setStatus("An error occurred.");
-      } finally {
-        setSubmitting(false);
-      }
+          setTimeout(() => { setShowPasswordModal(false); resetForm(); }, 2000);
+        } else { setStatus(data.error || "Failed to change password."); }
+      } catch { setStatus("An error occurred."); }
+      finally { setSubmitting(false); }
     },
   });
 
   if (status === "loading" || !session?.user || session.user.role !== "intern") return null;
 
+  const initials = profileData.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
+
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="pb-5 border-b border-slate-200 sm:flex sm:items-center sm:justify-between">
-        <div>
-          <h3 className="text-2xl font-bold leading-6 text-slate-900">My Profile</h3>
-        </div>
-        <div className="mt-4 sm:ml-4 sm:mt-0">
+    <div className="max-w-2xl mx-auto space-y-6">
+      {/* Profile Header Card */}
+      <div className="card p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center text-white text-xl font-extrabold shadow-lg shadow-indigo-500/25">
+              {initials}
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">{profileData.name}</h1>
+              <p className="text-slate-500 text-sm mt-0.5">{profileData.email}</p>
+              <span className="badge badge-success mt-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 inline-block" />
+                Active Intern
+              </span>
+            </div>
+          </div>
           <button
             onClick={() => { setShowPasswordModal(true); pwdFormik.resetForm(); }}
-            className="inline-flex items-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50"
+            className="btn btn-secondary text-sm"
           >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
             Change Password
           </button>
         </div>
       </div>
 
-      {/* Profile Card — all read-only */}
-      <div className="bg-white shadow sm:rounded-xl border border-slate-200 overflow-hidden">
-        <div className="px-4 py-5 sm:p-6">
-          <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-            <div className="sm:col-span-6">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
-              <input type="text" value={profileData.name} disabled className={disabledCls} />
-            </div>
-            <div className="sm:col-span-6">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
-              <input type="email" value={profileData.email} disabled className={disabledCls} />
-            </div>
-            <div className="sm:col-span-3">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Gender</label>
-              <input type="text" value={profileData.gender} disabled className={disabledCls} />
-            </div>
-            <div className="sm:col-span-3">
-              <label className="block text-sm font-medium text-slate-700 mb-1">College / University</label>
-              <input type="text" value={profileData.college} disabled className={disabledCls} />
-            </div>
-            <div className="sm:col-span-3">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Contact Number</label>
-              <input type="text" value={profileData.contact_number} disabled className={disabledCls} />
-            </div>
-            <div className="sm:col-span-3">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Joining Date</label>
-              <input type="date" value={profileData.joining_date} disabled className={disabledCls} />
-            </div>
-            <div className="sm:col-span-3">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Date of Birth</label>
-              <input type="date" value={profileData.date_of_birth} disabled className={disabledCls} />
-            </div>
-            <div className="sm:col-span-6">
-              <label className="block text-sm font-medium text-slate-700 mb-1">Degree / Program</label>
-              <input type="text" value={profileData.degree} disabled placeholder="Not specified" className={disabledCls} />
-            </div>
-          </div>
+      {/* Info Card */}
+      <div className="card p-6 space-y-5">
+        <h2 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+          <svg className="w-4 h-4 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+          Personal Information
+        </h2>
+        <div className="grid grid-cols-2 gap-4">
+          <ProfileField label="Gender" value={profileData.gender} />
+          <ProfileField label="Contact Number" value={profileData.contact_number} />
+          <ProfileField label="College / University" value={profileData.college} />
+          <ProfileField label="Degree / Program" value={profileData.degree} />
+          <ProfileField label="Date of Birth" value={profileData.date_of_birth ? new Date(profileData.date_of_birth).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" }) : ""} />
+          <ProfileField label="Joining Date" value={profileData.joining_date ? new Date(profileData.joining_date).toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" }) : ""} />
         </div>
       </div>
 
-      {/* Change Password Modal with Formik */}
+      {/* Change Password Modal */}
       {showPasswordModal && (
-        <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded-xl w-full max-w-sm sm:max-w-md shadow-xl">
-            <h2 className="text-xl font-bold mb-4 text-slate-800 border-b pb-2">Change Password</h2>
-
-            {pwdFormik.status === "success" ? (
-              <div className="mb-4 p-3 rounded-lg text-sm font-medium bg-emerald-50 text-emerald-800">
-                Password changed successfully!
+        <div className="modal-overlay" onClick={() => { setShowPasswordModal(false); pwdFormik.resetForm(); }}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <h2 className="text-base font-semibold text-slate-900">Change Password</h2>
               </div>
-            ) : pwdFormik.status ? (
-              <div className="mb-4 p-3 rounded-lg text-sm font-medium bg-red-50 text-red-800">
-                {pwdFormik.status}
-              </div>
-            ) : null}
+              <button onClick={() => { setShowPasswordModal(false); pwdFormik.resetForm(); }} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
 
-            <form onSubmit={pwdFormik.handleSubmit} noValidate className="space-y-4">
-              <FormField id="currentPassword" label="Current Password" error={pwdFormik.errors.currentPassword} touched={pwdFormik.touched.currentPassword}>
-                <input
-                  id="currentPassword"
-                  type="password"
-                  name="currentPassword"
-                  value={pwdFormik.values.currentPassword}
-                  onChange={pwdFormik.handleChange}
-                  onBlur={pwdFormik.handleBlur}
-                  className={getInputCls(pwdFormik.touched.currentPassword, pwdFormik.errors.currentPassword)}
-                />
-              </FormField>
+            <div className="p-6">
+              {pwdFormik.status === "success" ? (
+                <div className="flex items-center gap-2.5 px-4 py-3 bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-100 text-sm mb-4">
+                  <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                  Password changed successfully!
+                </div>
+              ) : pwdFormik.status ? (
+                <div className="flex items-center gap-2.5 px-4 py-3 bg-red-50 text-red-700 rounded-xl border border-red-100 text-sm mb-4">
+                  <svg className="w-4 h-4 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                  {pwdFormik.status}
+                </div>
+              ) : null}
 
-              <FormField id="newPassword" label="New Password" error={pwdFormik.errors.newPassword} touched={pwdFormik.touched.newPassword}>
-                <input
-                  id="newPassword"
-                  type="password"
-                  name="newPassword"
-                  value={pwdFormik.values.newPassword}
-                  onChange={pwdFormik.handleChange}
-                  onBlur={pwdFormik.handleBlur}
-                  className={getInputCls(pwdFormik.touched.newPassword, pwdFormik.errors.newPassword)}
-                />
-              </FormField>
+              <form onSubmit={pwdFormik.handleSubmit} noValidate className="space-y-4">
+                {[
+                  { id: "currentPassword", label: "Current Password" },
+                  { id: "newPassword", label: "New Password" },
+                  { id: "confirmPassword", label: "Confirm New Password" },
+                ].map((f) => (
+                  <FormField
+                    key={f.id}
+                    id={f.id} label={f.label}
+                    error={(pwdFormik.errors as any)[f.id]}
+                    touched={(pwdFormik.touched as any)[f.id]}
+                    required
+                  >
+                    <input
+                      id={f.id} type="password" name={f.id}
+                      value={(pwdFormik.values as any)[f.id]}
+                      onChange={pwdFormik.handleChange} onBlur={pwdFormik.handleBlur}
+                      className={getInputCls((pwdFormik.touched as any)[f.id], (pwdFormik.errors as any)[f.id])}
+                    />
+                  </FormField>
+                ))}
 
-              <FormField id="confirmPassword" label="Confirm New Password" error={pwdFormik.errors.confirmPassword} touched={pwdFormik.touched.confirmPassword}>
-                <input
-                  id="confirmPassword"
-                  type="password"
-                  name="confirmPassword"
-                  value={pwdFormik.values.confirmPassword}
-                  onChange={pwdFormik.handleChange}
-                  onBlur={pwdFormik.handleBlur}
-                  className={getInputCls(pwdFormik.touched.confirmPassword, pwdFormik.errors.confirmPassword)}
-                />
-              </FormField>
-
-              <div className="flex justify-end gap-2 pt-4 border-t">
-                <button
-                  type="button"
-                  onClick={() => { setShowPasswordModal(false); pwdFormik.resetForm(); }}
-                  className="px-4 py-2 border rounded-lg hover:bg-slate-50"
-                  disabled={pwdFormik.isSubmitting}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={pwdFormik.isSubmitting || !pwdFormik.isValid || !pwdFormik.dirty}
-                  className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 disabled:opacity-70 disabled:cursor-not-allowed flex items-center"
-                >
-                  {pwdFormik.isSubmitting ? "Updating..." : "Update Password"}
-                </button>
-              </div>
-            </form>
+                <div className="flex justify-end gap-3 pt-2 border-t border-slate-100">
+                  <button type="button" onClick={() => { setShowPasswordModal(false); pwdFormik.resetForm(); }} disabled={pwdFormik.isSubmitting} className="btn btn-secondary">
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={pwdFormik.isSubmitting || !pwdFormik.isValid || !pwdFormik.dirty} className="btn btn-primary">
+                    {pwdFormik.isSubmitting ? (
+                      <><svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg> Updating…</>
+                    ) : "Update Password"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
