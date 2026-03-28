@@ -38,13 +38,13 @@ export async function GET(request: Request) {
         users(where: { id: { _eq: $id } }) {
           department_id
         }
-      }`, { id: userId });
+      }`, { id: String(userId) });
 
       const myDeptId: number | null = userRes.data?.users?.[0]?.department_id ?? null;
 
       // Get department_ids for all creators of announcements
       const creatorIds = Array.from(new Set(announcements.map((a: any) => a.created_by)));
-      let creatorDeptMap = new Map<string, number | null>();
+      let creatorDeptMap = new Map<number, number | null>();
 
       if (creatorIds.length > 0) {
         const creatorsRes = await gql(`query GetCreators($ids: [uuid!]!) {
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
             id
             department_id
           }
-        }`, { ids: creatorIds });
+        }`, { ids: creatorIds.map(id => String(id)) });
 
         if (!creatorsRes.errors && creatorsRes.data?.users) {
           for (const u of creatorsRes.data.users) {
@@ -79,7 +79,7 @@ export async function GET(request: Request) {
             name
           }
         }
-      `, { ids: userIds });
+      `, { ids: userIds.map(id => String(id)) });
       if (!usersRes.errors && usersRes.data?.users) {
         const userMap = new Map(usersRes.data.users.map((u: any) => [u.id, u.name]));
         for (const a of announcements) {
@@ -142,7 +142,7 @@ export async function POST(request: Request) {
     const variables = {
       title,
       message,
-      created_by: user_id,
+      created_by: String(user_id),
       created_by_role: role,
     };
 

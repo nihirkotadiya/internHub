@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
     }`;
 
     const variables = {
-      id: userId,
+      id: String(userId),
       name,
       email: email ?? null,
       department_id: department_id ? Number(department_id) : null,
@@ -65,15 +65,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (targetUser.role === "intern") {
-      let internSet: any = { college: college ?? null };
-      
-      let customSets = [`collage: $collage`, `contact_number: $contact_number`];
+      let customSets = [`collage: $collage`];
       let variablesPayload: any = {
-        user_id: userId,
+        user_id: String(userId),
         collage: college ?? null,
-        contact_number: contact_number ?? null,
-        date_of_birth: date_of_birth ?? null,
-        degree: degree ?? null,
       };
 
       if (session.user.role === "admin" || session.user.role === "manager") {
@@ -87,11 +82,27 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Always include date_of_birth and degree in the update
-      customSets.push(`date_of_birth: $date_of_birth`);
-      customSets.push(`degree: $degree`);
+      // Always include date_of_birth and degree in the update if provided
+      if (date_of_birth) {
+        customSets.push(`date_of_birth: $date_of_birth`);
+        variablesPayload.date_of_birth = date_of_birth;
+      }
+      if (degree) {
+        customSets.push(`degree: $degree`);
+        variablesPayload.degree = degree;
+      }
+      if (contact_number) {
+        customSets.push(`contact_number: $contact_number`);
+        variablesPayload.contact_number = contact_number;
+      }
 
-      const internMutation = `mutation ($user_id: uuid!, $collage: String, $contact_number: String, $date_of_birth: date, $degree: String ${variablesPayload.joining_date ? ', $joining_date: date' : ''} ${variablesPayload.status ? ', $status: String' : ''}) {
+      const queryVariables = Object.keys(variablesPayload).map(key => {
+        if (key === 'user_id' || key === 'id') return `$${key}: uuid!`;
+        if (key === 'joining_date' || key === 'date_of_birth') return `$${key}: date`;
+        return `$${key}: String`;
+      }).join(', ');
+
+      const internMutation = `mutation (${queryVariables}) {
         update_interns(where: {user_id: {_eq: $user_id}}, _set: {${customSets.join(', ')}}) {
           affected_rows
         }

@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       }
     }`;
 
-    const fetchRes = await gql(fetchQuery, { id: session.user.id });
+    const fetchRes = await gql(fetchQuery, { id: String(session.user.id) });
 
     if (fetchRes.errors || !fetchRes.data?.users_by_pk) {
       return NextResponse.json({ error: "Error verifying password." }, { status: 500 });
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
     }`;
 
     const updateRes = await gql(updateMutation, {
-      id: session.user.id,
+      id: String(session.user.id),
       newPassword: hashedNewPassword
     });
 

@@ -79,20 +79,20 @@ export async function POST(req: NextRequest) {
         $user_id: uuid!,
         $collage: String,
         $joining_date: date,
-        $contact_number: String!,
-        $status: String!,
         $date_of_birth: date,
-        $degree: String
+        $degree: String,
+        $contact_number: String!,
+        $status: String!
       ) {
         insert_interns_one(object: {
           id: $id,
           user_id: $user_id,
           collage: $collage,
           joining_date: $joining_date,
-          contact_number: $contact_number,
-          status: $status,
           date_of_birth: $date_of_birth,
-          degree: $degree
+          degree: $degree,
+          contact_number: $contact_number,
+          status: $status
         }) {
           id
         }
@@ -103,10 +103,10 @@ export async function POST(req: NextRequest) {
         user_id: userId,
         collage: college || null,
         joining_date: joining_date || new Date().toISOString().split('T')[0],
-        contact_number: contact_number,
-        status: "active",
         date_of_birth: date_of_birth || null,
         degree: degree || null,
+        contact_number: contact_number,
+        status: "active",
       };
 
       const internRes = await gql(internMutation, internVariables);
