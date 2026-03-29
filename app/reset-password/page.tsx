@@ -38,7 +38,7 @@ export default function ResetPassword() {
     }
 
     if (!isValidPassword(newPassword)) {
-      setError("Password must be at least 6 characters long.");
+      setError("👉 Password must be 6+ characters with 1 uppercase & 1 special character.");
       return;
     }
 
