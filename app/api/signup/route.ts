@@ -3,6 +3,7 @@ import { gql } from "@/lib/hasura";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { validateUserRegistration } from "@/lib/validation";
+import { sendWelcomeEmail } from "@/lib/otp";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 
@@ -116,6 +117,10 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: `User created but intern details failed: ${internRes.errors[0].message}` }, { status: 500 });
       }
     }
+
+    // Send welcome email with credentials
+    // Note: Use the original 'password' variable which is plain text
+    await sendWelcomeEmail(email, password, name);
 
     return NextResponse.json({ success: true, user_id: userId });
   } catch (err) {
