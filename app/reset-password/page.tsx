@@ -16,10 +16,10 @@ export default function ResetPassword() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    const emailParam = searchParams.get("email");
-    if (emailParam) {
-      setEmail(emailParam);
-    }
+    const storedEmail = localStorage.getItem("resetEmail");
+    if (storedEmail) {
+      setEmail(storedEmail);
+    } 
   }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -54,6 +54,7 @@ export default function ResetPassword() {
       const data = await res.json();
       if (res.ok) {
         setMessage("Password has been reset successfully. Redirecting to login...");
+        localStorage.removeItem("resetEmail");
         setTimeout(() => {
           router.push("/");
         }, 3000);

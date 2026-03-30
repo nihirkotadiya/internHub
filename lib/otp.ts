@@ -4,9 +4,7 @@ export function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-/**
- * Sends an OTP to an email address using Nodemailer.
- */
+
 export async function sendOTPMock(email: string, otp: string) {
   const transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST || "smtp.gmail.com",

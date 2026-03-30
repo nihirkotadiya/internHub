@@ -26,30 +26,6 @@ export async function POST(req: NextRequest) {
     const expiry = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 minutes from now
 
     // 3. Save OTP in DB (using mutation)
-    // Since password_reset_otps is not tracked in Hasura, I'll use a direct SQL via Hasura if possible,
-    // or I'll have to ask to track the table.
-    // Wait, I can try to use Hasura's GraphQL mutation if I track the table.
-    // Let's assume for now I'll track the table.
-    // Actually, I can use the 'run_sql' endpoint in the API (though not ideal for performance).
-    // Better: I'll track the table in Hasura.
-    
-    // I'll use run_sql for now to ensure it works without manual Hasura console intervention
-    const trackTable = await fetch('http://localhost:8080/v1/query', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-hasura-admin-secret': 'myadminsecretkey'
-      },
-      body: JSON.stringify({
-        type: 'pg_track_table',
-        args: {
-          source: 'default',
-          table: 'password_reset_otps'
-        }
-      })
-    });
-    // Ignore errors if already tracked
-
     const insertMutation = `mutation ($email: String!, $otp: String!, $expiry: timestamp!) {
       insert_password_reset_otps_one(object: {
         email: $email,

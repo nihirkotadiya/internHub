@@ -6,7 +6,7 @@ export async function ensureAdminExists() {
     console.log("🛠 Checking for default admin user...");
 
     const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@internhub.com";
-    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123";
+    const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Admin@123";
     const ADMIN_NAME = "Administrator";
 
     // 1. Check if an admin already exists

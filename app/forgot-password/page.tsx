@@ -26,8 +26,9 @@ export default function ForgotPassword() {
       const data = await res.json();
       if (res.ok) {
         setMessage("OTP has been sent to your email.");
+        localStorage.setItem("resetEmail", email);
         setTimeout(() => {
-          router.push(`/reset-password?email=${encodeURIComponent(email)}`);
+          router.push(`/reset-password`);
         }, 2000);
       } else {
         setError(data.error || "Something went wrong.");
